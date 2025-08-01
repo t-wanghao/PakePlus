@@ -1,32 +1,515 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <link rel="stylesheet" href="styles.css" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus App</title>
-        <script type="module" src="/main.js" defer></script>
-    </head>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件解密工具</title>
+    <script src="jszip.min.js"></script>
+    <script src="FileSaver.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px;
+            color: #fff;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            margin-top: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .upload-area {
+            border: 3px dashed rgba(255, 255, 255, 0.4);
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 25px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .upload-area:hover, .upload-area.drag-over {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .upload-text {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+        }
+        
+        .or-text {
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        
+        .browse-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .browse-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .password-section {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 25px 0;
+        }
+        
+        .section-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .section-title i {
+            margin-right: 10px;
+            font-size: 1.4rem;
+        }
+        
+        .password-input {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .password-input input {
+            flex: 1;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.12);
+            color: white;
+            font-size: 1rem;
+            outline: none;
+        }
+        
+        .password-input input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .password-input input:focus {
+            background: rgba(255, 255, 255, 0.18);
+        }
+        
+        .extract-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        
+        .extract-btn:hover {
+            background: #0b7dda;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .extract-btn:disabled {
+            background: #757575;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .file-list {
+            margin-top: 30px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .file-list-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+        
+        .file-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+        
+        .file-icon {
+            font-size: 1.5rem;
+            margin-right: 15px;
+            color: #2196F3;
+        }
+        
+        .file-info {
+            flex: 1;
+        }
+        
+        .file-name {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        
+        .file-size {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+        
+        .download-btn {
+            background: transparent;
+            border: 2px solid #4CAF50;
+            color: #4CAF50;
+            padding: 8px 15px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .download-btn:hover {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .status-area {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #a5d6a7;
+        }
+        
+        .error {
+            background: rgba(244, 67, 54, 0.2);
+            color: #ffab91;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .file-input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .password-input {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>文件解密工具</h1>
+            <p class="subtitle">拖放文件到下方区域或点击浏览文件</p>
+        </header>
+        
+        <div class="upload-area" id="uploadArea">
+            <input type="file" id="fileInput" class="file-input" accept=".zip">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">拖放文件到这里</div>
+            <div class="or-text">或</div>
+            <button class="browse-btn">浏览文件</button>
+        </div>
+        
+        <div class="password-section">
+            <div class="section-title">
+                <div>🔒 文件密码（可选）</div>
+            </div>
+            <div class="password-input">
+                <input type="password" id="passwordInput" placeholder="输入解密码（如果没有密码请留空）">
+            </div>
+        </div>
+        
+        <button id="extractBtn" class="extract-btn" disabled>解密文件</button>
+        
+        <div class="file-list hidden" id="fileList">
+            <div class="file-list-title">解压文件列表</div>
+            <div id="fileListContent"></div>
+        </div>
+        
+        <div class="status-area hidden" id="statusArea"></div>
+    </div>
+    
+    <footer>
+        <p></p>
+    </footer>
 
-    <body>
-        <main class="container">
-            <h1>Welcome to PakePlus</h1>
-            <form class="row" id="greet-form">
-                <input id="inputValue" placeholder="Enter a something..." />
-            </form>
-            <div class="resultBox">
-                <span>result: </span>
-                <span id="result"></span>
-            </div>
-            <div class="invokeBox">
-                <button id="openUrl">open_url_browser</button>
-                <button id="openUrlNew">open_url_new</button>
-                <button id="runCommand">run_command</button>
-                <button id="downloadFile">download_file</button>
-                <button id="getExeDir">get_exe_dir</button>
-                <button id="getEnvVar">get_env_var</button>
-                <button id="findPort">find_port</button>
-            </div>
-        </main>
-    </body>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const extractBtn = document.getElementById('extractBtn');
+            const passwordInput = document.getElementById('passwordInput');
+            const fileList = document.getElementById('fileList');
+            const fileListContent = document.getElementById('fileListContent');
+            const statusArea = document.getElementById('statusArea');
+            
+            let currentZipFile = null;
+            
+            // 点击浏览按钮触发文件选择
+            uploadArea.querySelector('.browse-btn').addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            // 文件选择处理
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // 拖放功能
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('drag-over');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('drag-over');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('drag-over');
+                
+                if (e.dataTransfer.files.length) {
+                    handleFile(e.dataTransfer.files[0]);
+                }
+            });
+            
+            // 文件选择处理函数
+            function handleFileSelect(e) {
+                if (e.target.files.length) {
+                    handleFile(e.target.files[0]);
+                }
+            }
+            
+            // 处理ZIP文件
+            function handleFile(file) {
+                if (!file.name.toLowerCase().endsWith('.zip')) {
+                    showStatus('请选择ZIP格式的文件', 'error');
+                    return;
+                }
+                
+                currentZipFile = file;
+                extractBtn.disabled = false;
+                
+                // 显示文件名
+                const fileName = file.name.length > 30 ? file.name.substring(0, 27) + '...' : file.name;
+                uploadArea.querySelector('.upload-text').textContent = `已选择: ${fileName}`;
+                uploadArea.querySelector('.upload-icon').textContent = '📦';
+                
+                showStatus('文件已准备就绪，请输入密码（如果需要）并点击解压按钮', 'success');
+            }
+            
+            // 解压按钮点击事件
+            extractBtn.addEventListener('click', extractZip);
+            
+            // 解压ZIP文件
+            function extractZip() {
+                if (!currentZipFile) return;
+                
+                extractBtn.disabled = true;
+                extractBtn.textContent = '解压中...';
+                fileList.classList.add('hidden');
+                statusArea.classList.add('hidden');
+                
+                const password = passwordInput.value;
+                
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    const zipData = e.target.result;
+                    
+                    JSZip.loadAsync(zipData, {password: password || undefined})
+                        .then(function(zip) {
+                            // 清空文件列表
+                            fileListContent.innerHTML = '';
+                            
+                            // 计算文件总数和总大小
+                            let fileCount = 0;
+                            let totalSize = 0;
+                            
+                            // 遍历ZIP文件中的每个文件
+                            zip.forEach(function(relativePath, zipEntry) {
+                                if (!zipEntry.dir) {
+                                    fileCount++;
+                                    totalSize += zipEntry._data.uncompressedSize;
+                                    
+                                    // 创建文件项
+                                    const fileItem = document.createElement('div');
+                                    fileItem.className = 'file-item';
+                                    
+                                    const fileSize = formatFileSize(zipEntry._data.uncompressedSize);
+                                    
+                                    fileItem.innerHTML = `
+                                        <div class="file-icon">📄</div>
+                                        <div class="file-info">
+                                            <div class="file-name">${zipEntry.name}</div>
+                                            <div class="file-size">${fileSize}</div>
+                                        </div>
+                                        <button class="download-btn" data-file="${zipEntry.name}">下载</button>
+                                    `;
+                                    
+                                    fileListContent.appendChild(fileItem);
+                                    
+                                    // 添加下载按钮事件
+                                    fileItem.querySelector('.download-btn').addEventListener('click', function() {
+                                        downloadFile(zip, zipEntry.name);
+                                    });
+                                }
+                            });
+                            
+                            if (fileCount > 0) {
+                                fileList.classList.remove('hidden');
+                                showStatus(`成功解压! 共 ${fileCount} 个文件, 总大小: ${formatFileSize(totalSize)}`, 'success');
+                            } else {
+                                showStatus('ZIP文件中未找到可解压的文件', 'error');
+                            }
+                            
+                            extractBtn.textContent = '解压文件';
+                            extractBtn.disabled = false;
+                        })
+                        .catch(function(error) {
+                            console.error('解压错误:', error);
+                            
+                            if (error.message.includes('Bad password')) {
+                                showStatus('解压失败: 密码错误', 'error');
+                            } else if (error.message.includes('Corrupted zip')) {
+                                showStatus('解压失败: ZIP文件已损坏', 'error');
+                            } else {
+                                showStatus('解压失败: ' + error.message, 'error');
+                            }
+                            
+                            extractBtn.textContent = '解压文件';
+                            extractBtn.disabled = false;
+                        });
+                };
+                
+                reader.readAsArrayBuffer(currentZipFile);
+            }
+            
+            // 下载单个文件
+            function downloadFile(zip, fileName) {
+                zip.file(fileName).async('blob')
+                    .then(function(blob) {
+                        saveAs(blob, fileName);
+                    })
+                    .catch(function(error) {
+                        console.error('下载错误:', error);
+                        showStatus('下载失败: ' + error.message, 'error');
+                    });
+            }
+            
+            // 显示状态信息
+            function showStatus(message, type) {
+                statusArea.textContent = message;
+                statusArea.className = `status-area ${type}`;
+                statusArea.classList.remove('hidden');
+            }
+            
+            // 格式化文件大小
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        });
+    </script>
+</body>
 </html>
